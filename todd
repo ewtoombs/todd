@@ -20,7 +20,7 @@ class ToddHandler(BaseHTTPRequestHandler):
         self.end_headers()
         with sp.Popen(command, stdout=sp.PIPE) as p:
             while True:
-                data = p.stdout.read(1024)
+                data = p.stdout.read(0x1_0000)
                 if len(data) == 0:
                     break
 
