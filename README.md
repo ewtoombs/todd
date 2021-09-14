@@ -1,5 +1,5 @@
 # todd
-''Shove the output of a command down an HTTP connection.''
+*Shove the output of a command down an HTTP connection.*
 
 ## Example: copy an entire folder over HTTP.
 
