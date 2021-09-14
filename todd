@@ -3,38 +3,59 @@
 from socketserver import TCPServer
 from http.server import BaseHTTPRequestHandler
 import subprocess as sp
-from sys import *
+from sys import argv, stderr
+import signal
+from threading import Thread
+
+if len(argv) < 3:
+    stderr.write('usage: todd port command [arg1 arg2 ...]\n')
+    exit(1)
+port = int(argv[1])
+command = argv[2:]
 
 class ToddHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         stderr.write('Client has connected.\n')
         self.send_response(200, message=b'*sigh*, faaaain...')
         self.end_headers()
-        p = sp.Popen(argv[2:], stdout=sp.PIPE)
-        while True:
-            data = p.stdout.read(1024)
-            if len(data) == 0:
-                break
+        with sp.Popen(command, stdout=sp.PIPE) as p:
+            while True:
+                data = p.stdout.read(1024)
+                if len(data) == 0:
+                    break
 
-            try:
-                self.wfile.write(data)
-            except BrokenPipeError:
-                break
-            except ConnectionResetError:
-                break
+                try:
+                    self.wfile.write(data)
+                except BrokenPipeError:
+                    break
+                except ConnectionResetError:
+                    break
         stderr.write('Client has disconnected.\n')
-        p.stdout.close()
-        # The previous call is enough to stop the command, but it will be a 
-        # zombie until after the exit code is read. This is what this last 
-        # p.wait() call is for. DIE ZOMBIES!!
-        p.wait()
-
-if len(argv) < 3:
-    stderr.write('usage: todd port command [arg1 arg2 ...]\n')
-    exit(1)
 
 # Create the server.
-server = TCPServer(('', int(argv[1])), ToddHandler)
+server = TCPServer(('', port), ToddHandler)
+# If shutdown() isn't explicitly called, there can be some dirty state leftover
+# in the kernel's TCP implementation, causing errors like "OSError: [Errno 98]
+# Address already in use" to occur, even though the process that was once
+# listening at that address and port is long gone. This flotsam does eventually
+# get cleared up by the kernel, but it's better to call shutdown(), so that
+# todd can always be restarted immediately after it is exited. So, register a
+# signal handler to call shutdown() on ^C.
+def h(signal, frame):
+    # In general, if any global state at all is modified from within a signal
+    # handler, bad things happen. This is because a UNIX signal handler runs on
+    # the main thread, but on its own stack. The main thread's actual stack is
+    # in an undefined state, along with the rest of the global state. So, run
+    # the handler in a separate thread instead, and get out of this fucking
+    # purgatory as quickly as possible. It baffles me that python doesn't do
+    # this by default.
+    def f():
+        # There will be a "^C" in the terminal now, but without a newline. So,
+        # add a newline, for the sake of the shell we're returning to.
+        print()
+        server.shutdown()
+    Thread(target=f).start()
+signal.signal(signal.SIGINT, h)
 
 # Activate the server; this will keep running until you
 # interrupt the program with Ctrl-C
