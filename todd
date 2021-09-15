@@ -17,7 +17,7 @@ command = argv[2:]
 class ToddHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         stderr.write('Client has connected.\n')
-        self.send_response(200, message=b'*sigh*, faaaain...')
+        self.send_response(200, message='*sigh*, faaaain...')
         self.end_headers()
         with sp.Popen(command, stdout=sp.PIPE) as p:
             while True:
