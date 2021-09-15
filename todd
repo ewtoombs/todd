@@ -13,6 +13,7 @@ if len(argv) < 3:
 port = int(argv[1])
 command = argv[2:]
 
+# Create the server.
 class ToddHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         stderr.write('Client has connected.\n')
@@ -31,16 +32,14 @@ class ToddHandler(BaseHTTPRequestHandler):
                 except ConnectionResetError:
                     break
         stderr.write('Client has disconnected.\n')
-
-# Create the server.
 server = TCPServer(('', port), ToddHandler)
 # If shutdown() isn't explicitly called, there can be some dirty state leftover
 # in the kernel's TCP implementation, causing errors like "OSError: [Errno 98]
-# Address already in use" to occur, even though the process that was once
-# listening at that address and port is long gone. This flotsam does eventually
-# get cleared up by the kernel, but it's better to call shutdown(), so that
-# todd can always be restarted immediately after it is exited. So, register a
-# signal handler to call shutdown() on ^C.
+# Address already in use" to occur the next time todd is started up again, even
+# though the process that was once listening at that address and port is long
+# gone. This flotsam does eventually get cleared up by the kernel, but it's
+# better to call shutdown(), so that todd can always be restarted immediately
+# after it is exited. So, register a signal handler to call shutdown() on ^C.
 def h(signal, frame):
     # In general, if any global state at all is modified from within a signal
     # handler, bad things happen. This is because a UNIX signal handler runs on
