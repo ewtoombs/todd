@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
-from socketserver import TCPServer
-from http.server import BaseHTTPRequestHandler
-import subprocess as sp
 from sys import argv, stderr
 import signal
 from threading import Thread
+import subprocess as sp
+
+from socketserver import TCPServer
+from http.server import BaseHTTPRequestHandler
+import urllib.parse
 
 if len(argv) < 3:
     stderr.write('usage: todd port command [arg1 arg2 ...]\n')
@@ -18,6 +20,15 @@ class ToddHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         stderr.write('Client has connected.\n')
         self.send_response(200, message='*sigh*, faaaain...')
+        if command[0] == 'cat' and len(command) == 2:
+            filename = urllib.parse.quote(command[1])
+            self.send_header(
+                'Content-Disposition',
+                'attachment; filename="{}"; filename*=UTF-8\'\'{}'.format(
+                     filename,
+                     filename,
+                 ),
+            )
         self.end_headers()
         with sp.Popen(command, stdout=sp.PIPE) as p:
             while True:
